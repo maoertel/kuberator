@@ -515,6 +515,7 @@ where
         )
     )]
     async fn reconcile(resource: Arc<R>, context: Arc<C>) -> Result<Action> {
+        tracing::info!("Reconciliation started");
         Ok(context.handle_reconciliation(resource).await?)
     }
 
