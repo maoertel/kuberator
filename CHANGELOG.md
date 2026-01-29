@@ -31,15 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2025-03-01
 
 ### Added
-- API provider abstraction with `ProvideApi` trait ([#13](https://github.com/commercetools/kuberator/pull/13))
+- API provider abstraction with `ProvideApi` trait ([#13](https://github.com/maoertel/kuberator/pull/13))
 - `StaticApiProvider` for pre-cached API instances
 - `CachedApiProvider` for dynamic namespace discovery
-- Flexible caching strategies: Strict, Adhoc, and Extendable ([#14](https://github.com/commercetools/kuberator/pull/14))
+- Flexible caching strategies: Strict, Adhoc, and Extendable ([#14](https://github.com/maoertel/kuberator/pull/14))
 - Generic `K8sRepository` to eliminate boilerplate
-- Comprehensive test suite with Given/When/Then pattern ([#15](https://github.com/commercetools/kuberator/pull/15))
+- Comprehensive test suite with Given/When/Then pattern ([#15](https://github.com/maoertel/kuberator/pull/15))
 
 ### Changed
-- **BREAKING**: Upgraded `kube` to v2.0 ([#12](https://github.com/commercetools/kuberator/pull/12))
+- **BREAKING**: Upgraded `kube` to v2.0 ([#12](https://github.com/maoertel/kuberator/pull/12))
 - **BREAKING**: Upgraded `schemars` to v1.1
 - **BREAKING**: `StaticApiProvider::new()` now requires `CachingStrategy` parameter
 - Updated all examples and documentation for new API
@@ -72,7 +72,7 @@ StaticApiProvider::new(client, vec!["default"], CachingStrategy::Strict)
 ## [0.1.8] - 2025-02-15
 
 ### Added
-- Graceful shutdown support for controllers ([#10](https://github.com/commercetools/kuberator/pull/10))
+- Graceful shutdown support for controllers ([#10](https://github.com/maoertel/kuberator/pull/10))
 - `start()` and `start_concurrent()` now accept optional shutdown signal
 
 ## [0.1.7] - 2025-02-01
@@ -85,12 +85,12 @@ StaticApiProvider::new(client, vec!["default"], CachingStrategy::Strict)
 ## Earlier Versions
 
 Earlier versions were not documented in this changelog. For historical changes,
-see the [commit history](https://github.com/commercetools/kuberator/commits/main).
+see the [commit history](https://github.com/maoertel/kuberator/commits/main).
 
 ---
 
-[Unreleased]: https://github.com/commercetools/kuberator/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/commercetools/kuberator/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/commercetools/kuberator/compare/v0.1.8...v0.2.0
-[0.1.8]: https://github.com/commercetools/kuberator/compare/v0.1.7...v0.1.8
-[0.1.7]: https://github.com/commercetools/kuberator/releases/tag/v0.1.7
+[Unreleased]: https://github.com/maoertel/kuberator/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/maoertel/kuberator/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/maoertel/kuberator/compare/v0.1.8...v0.2.0
+[0.1.8]: https://github.com/maoertel/kuberator/compare/v0.1.7...v0.1.8
+[0.1.7]: https://github.com/maoertel/kuberator/releases/tag/v0.1.7
