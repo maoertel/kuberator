@@ -234,7 +234,7 @@ tracing_log::LogTracer::init()?;
 - Check the updated examples in `examples/`
 - Review the [tracing documentation](https://docs.rs/tracing)
 - See [kube-rs observability guide](https://kube.rs/controllers/observability/)
-- Open an issue at https://github.com/commercetools/kuberator/issues
+- Open an issue at https://github.com/maoertel/kuberator/issues
 
 ## Summary
 

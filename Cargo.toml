@@ -1,6 +1,6 @@
 [package]
 name = "kuberator"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Mathias Oertel <mathias.oertel@gmail.com>"]
 description = "A Kubernetes operator framework in Rust"
@@ -8,7 +8,7 @@ documentation = "https://docs.rs/kuberator"
 readme = "README.md"
 keywords = ["operator", "k8s", "kubernetes"]
 license = "MIT"
-repository = "https://github.com/commercetools/kuberator"
+repository = "https://github.com/maoertel/kuberator"
 
 [dependencies]
 kube = { version = "2.0", features = ["runtime", "derive"] }
