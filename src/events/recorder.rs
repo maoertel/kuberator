@@ -78,9 +78,9 @@ where
             api_version: Some(K::api_version(&()).to_string()),
             kind: Some(K::kind(&()).to_string()),
             name: Some(name.to_owned()),
-            namespace: Some(namespace.clone()),
-            uid: object.meta().uid.clone(),
-            resource_version: object.meta().resource_version.clone(),
+            namespace: Some(namespace.to_owned()),
+            uid: object.meta().uid.to_owned(),
+            resource_version: object.meta().resource_version.to_owned(),
             ..Default::default()
         };
         self.create_new(&events_api, key, event, name, &namespace, regarding)
@@ -117,6 +117,7 @@ where
         self
     }
 
+    /// Look up a cached event by key, evicting expired entries first.
     async fn lookup_cached(&self, key: &EventKey) -> Option<CachedEvent> {
         let mut cache = self.cache.lock().await;
         let ttl = self.cache_ttl;
@@ -167,7 +168,7 @@ where
 
         let k8s_event = K8sEvent {
             metadata: ObjectMeta {
-                name: Some(event_name.clone()),
+                name: Some(event_name.to_owned()),
                 namespace: Some(namespace.to_owned()),
                 ..Default::default()
             },

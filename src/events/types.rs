@@ -32,7 +32,6 @@ pub struct EventData<R: Reason> {
 }
 
 impl<R: Reason> EventData<R> {
-    /// Create a Normal event
     pub fn normal(reason: R, message: impl Into<String>) -> Self {
         Self {
             type_: EventType::Normal,
