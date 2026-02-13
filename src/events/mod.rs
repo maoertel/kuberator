@@ -172,14 +172,15 @@ pub mod tests {
             {
                 existing.count += 1;
                 existing.message = event.message;
-            } else {
-                events.push(RecordedEvent {
-                    resource_name: name,
-                    reason: event.reason,
-                    message: event.message,
-                    count: 1,
-                });
+                return Ok(());
             }
+
+            events.push(RecordedEvent {
+                resource_name: name,
+                reason: event.reason,
+                message: event.message,
+                count: 1,
+            });
 
             Ok(())
         }
@@ -232,14 +233,15 @@ pub mod tests {
             {
                 existing.count += 1;
                 existing.message = event.message;
-            } else {
-                events.push(RecordedEvent {
-                    resource_name: name,
-                    reason: event.reason,
-                    message: event.message,
-                    count: 1,
-                });
+                return Ok(());
             }
+
+            events.push(RecordedEvent {
+                resource_name: name,
+                reason: event.reason,
+                message: event.message,
+                count: 1,
+            });
 
             Ok(())
         }
