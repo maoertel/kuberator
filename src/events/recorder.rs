@@ -93,6 +93,8 @@ where
     P: ProvideApi<K8sEvent> + Send + Sync,
 {
     const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(6 * 60);
+    /// Maximum length for the `note` field in `events.k8s.io/v1` Events.
+    const MAX_NOTE_LENGTH: usize = 1024;
 
     /// Create a new EventRecorder
     ///
@@ -166,6 +168,9 @@ where
         let now = Utc::now();
         let event_name = format!("{name}.{:x}", now.timestamp_micros() as u64);
 
+        let action = event.action.unwrap_or_else(|| event.reason.to_string());
+        let note = truncate_note(event.message, Self::MAX_NOTE_LENGTH);
+
         let k8s_event = K8sEvent {
             metadata: ObjectMeta {
                 name: Some(event_name.to_owned()),
@@ -176,9 +181,9 @@ where
             reporting_controller: Some(self.component.to_string()),
             reporting_instance: Some(self.component.to_string()),
             regarding: Some(regarding),
-            action: event.action,
+            action: Some(action),
             reason: Some(event.reason.to_string()),
-            note: Some(event.message),
+            note: Some(note),
             type_: Some(event.type_.to_string()),
             ..Default::default()
         };
@@ -230,4 +235,78 @@ struct CachedEvent {
 #[derive(Debug, Serialize)]
 struct EventSeriesPatch {
     series: EventSeries,
+}
+
+/// Truncate a message to fit within the `events.k8s.io/v1` note field limit.
+/// Appends "..." when truncation occurs, preserving char boundaries.
+fn truncate_note(message: String, max_len: usize) -> String {
+    if message.len() <= max_len {
+        return message;
+    }
+
+    let suffix = "...";
+    let truncate_at = max_len - suffix.len();
+    let boundary = message
+        .char_indices()
+        .take_while(|(i, _)| *i <= truncate_at)
+        .last()
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+
+    format!("{}{suffix}", &message[..boundary])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncate_note_short_message_unchanged() {
+        // Given a message within the limit
+        let message = "Short message".to_string();
+
+        // When truncating with a generous limit
+        let result = truncate_note(message.clone(), 1024);
+
+        // Then the message is unchanged
+        assert_eq!(result, message);
+    }
+
+    #[test]
+    fn truncate_note_exact_limit_unchanged() {
+        // Given a message exactly at the limit
+        let message = "a".repeat(1024);
+
+        // When truncating
+        let result = truncate_note(message.clone(), 1024);
+
+        // Then the message is unchanged
+        assert_eq!(result, message);
+    }
+
+    #[test]
+    fn truncate_note_over_limit_adds_ellipsis() {
+        // Given a message exceeding the limit
+        let message = "a".repeat(1025);
+
+        // When truncating
+        let result = truncate_note(message, 1024);
+
+        // Then the result is truncated with "..." and fits within limit
+        assert_eq!(result.len(), 1024);
+        assert!(result.ends_with("..."));
+    }
+
+    #[test]
+    fn truncate_note_preserves_char_boundaries() {
+        // Given a message with multi-byte characters near the boundary
+        let message = format!("{}ä{}", "a".repeat(1022), "b".repeat(10));
+
+        // When truncating
+        let result = truncate_note(message, 1024);
+
+        // Then the result is valid UTF-8 and within limit
+        assert!(result.len() <= 1024);
+        assert!(result.ends_with("..."));
+    }
 }
