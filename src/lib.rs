@@ -206,7 +206,7 @@
 //! ```rust,ignore
 //! use kuberator::events::{EventRecorder, EventData, EmitEvent};
 //! use kuberator::cache::StaticApiProvider;
-//! use k8s_openapi::api::core::v1::Event;
+//! use k8s_openapi::api::events::v1::Event;
 //!
 //! // Setup event API provider (once at startup)
 //! let event_api_provider = Arc::new(StaticApiProvider::new(
@@ -274,7 +274,7 @@
 //! recorder.emit(&resource, EventData::normal(TestReason::Created, "test")).await;
 //!
 //! let events = recorder.events();
-//! assert_eq!(events[0].1, TestReason::Created);
+//! assert_eq!(events[0].reason, TestReason::Created);
 //! # });
 //! ```
 //!
