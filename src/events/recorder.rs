@@ -11,6 +11,7 @@ use k8s_openapi::api::events::v1::Event;
 use k8s_openapi::api::events::v1::EventSeries;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::MicroTime;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use kube::Api;
 use kube::api::Patch;
 use kube::api::PatchParams;
 use kube::api::PostParams;
@@ -131,7 +132,7 @@ where
 
     async fn patch_existing(
         &self,
-        events_api: &kube::Api<Event>,
+        events_api: &Api<Event>,
         key: &EventKey,
         cached: &CachedEvent,
     ) -> Result<()> {
@@ -160,7 +161,7 @@ where
 
     async fn create_new<R: Reason>(
         &self,
-        events_api: &kube::Api<Event>,
+        events_api: &Api<Event>,
         key: EventKey,
         event: EventData<R>,
         name: &str,
