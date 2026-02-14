@@ -98,7 +98,8 @@ pub mod tests {
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use std::sync::Arc;
     use std::sync::Mutex;
-    use strum::{AsRefStr, Display};
+    use strum::AsRefStr;
+    use strum::Display;
 
     // Test event reason enum
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, AsRefStr)]

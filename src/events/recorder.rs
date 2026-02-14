@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use std::time::Instant;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -19,7 +20,8 @@ use tokio::sync::Mutex;
 
 use crate::cache::ProvideApi;
 use crate::error::Result;
-use crate::events::types::{EventData, Reason};
+use crate::events::types::EventData;
+use crate::events::types::Reason;
 use crate::events::EmitEvent;
 use crate::TryResource;
 
