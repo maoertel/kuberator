@@ -8,7 +8,7 @@ building Kubernetes Operators. It is still in its early stages and a work in pro
 - **Trait-based Architecture** - Clean separation of concerns with `Finalize`, `Context`, and `Reconcile` traits
 - **API Caching** - Lock-free caching strategies for optimal performance (Strict, Adhoc, Extendable)
 - **Generic Repository** - Zero-boilerplate `K8sRepository` implementation
-- **Event Emission** - Built-in Kubernetes Event creation for observability
+- **Event Emission** - Built-in Kubernetes Event creation via `events.k8s.io/v1` with automatic deduplication
 - **Status Management** - Observed Generation Pattern with error handling support
 - **Graceful Shutdown** - Signal-based controller termination
 - **Concurrent Reconciliation** - Configurable parallelism with `start_concurrent()`
@@ -232,7 +232,12 @@ reconciler.start(Some(shutdown_signal)).await;
 
 ## Event Emission
 
-Emit Kubernetes Events for observability. Events appear in `kubectl describe` output and provide visibility into operator operations.
+Emit Kubernetes Events via the `events.k8s.io/v1` API with built-in deduplication. Events appear in
+`kubectl describe` and `kubectl events` output and provide visibility into operator operations.
+
+Identical events (same object, type, reason, and action) within a 6-minute window are automatically
+deduplicated: the first occurrence creates a new Event, subsequent ones PATCH the existing Event's
+`series.count`.
 
 ### Quick Example
 
@@ -250,7 +255,7 @@ enum MyEventReason {
 
 impl Reason for MyEventReason {}
 
-// Setup event recorder
+// Setup event recorder (note: use events::v1::Event, not core::v1::Event)
 let event_api_provider = Arc::new(StaticApiProvider::new(
     client.clone(),
     vec!["default"],
@@ -270,6 +275,24 @@ event_recorder.emit(
 ```
 
 Events never fail reconciliation—errors are logged as warnings. Use `MockEventRecorder` for testing.
+
+### RBAC Requirements
+
+Your operator's ClusterRole needs permission to create and patch events in the `events.k8s.io` API group:
+
+```yaml
+- apiGroups: ["events.k8s.io"]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+```
+
+### Viewing Events
+
+Use `kubectl events` (not `kubectl get events`) to see `events.k8s.io/v1` events with dedup counts:
+
+```bash
+kubectl events -n <namespace> --for <kind>/<name>
+```
 
 See [module documentation](https://docs.rs/kuberator/latest/kuberator/events/) for detailed usage.
 

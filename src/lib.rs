@@ -180,8 +180,13 @@
 //!
 //! ## Event Emission
 //!
-//! Kuberator provides generic Kubernetes event emission for observability through the [`events`] module.
-//! Events appear in `kubectl describe` output and provide visibility into operator operations.
+//! Kuberator provides generic Kubernetes event emission via the `events.k8s.io/v1` API through
+//! the [`events`] module. Events appear in `kubectl describe` and `kubectl events` output and
+//! provide visibility into operator operations.
+//!
+//! Identical events (same object UID, type, reason, and action) within a configurable window
+//! (default: 6 minutes) are automatically deduplicated: the first occurrence creates a new
+//! Event, subsequent ones PATCH the existing Event's `series.count`.
 //!
 //! ### Defining Event Reasons
 //!
@@ -248,6 +253,21 @@
 //!
 //! **Important:** Events never fail reconciliation. The `emit()` method logs errors as warnings
 //! but does not propagate them. Use `try_emit()` if you need explicit error handling.
+//!
+//! **RBAC:** Your operator's ClusterRole needs `apiGroups: ["events.k8s.io"]`, resources
+//! `["events"]`, verbs `["create", "patch"]`.
+//!
+//! **Viewing events:** Use `kubectl events -n <namespace>` (not `kubectl get events`) to see
+//! `events.k8s.io/v1` events with dedup counts.
+//!
+//! ### Customizing the Deduplication Window
+//!
+//! ```rust,ignore
+//! use std::time::Duration;
+//!
+//! let event_recorder = EventRecorder::new(event_api_provider, "my-operator")
+//!     .with_cache_ttl(Duration::from_secs(10 * 60)); // 10 minutes instead of default 6
+//! ```
 //!
 //! ### Testing with MockEventRecorder
 //!

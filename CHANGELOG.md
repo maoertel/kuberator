@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-13
+
+### Added
+- Event deduplication via in-memory cache: identical events (same object UID, type, reason, action) within a 6-minute window are PATCHed with an incremented `series.count` instead of creating new Event objects
+- `EventRecorder::with_cache_ttl()` builder method to customize the deduplication window
+- Automatic note truncation to 1024 characters (the `events.k8s.io/v1` field limit), with `...` suffix on truncation
+- Action field defaults to the reason string when not explicitly set via `with_action()`
+- `RecordedEvent<R>` struct in `MockEventRecorder` with `resource_name`, `reason`, `message`, and `count` fields
+- `MockEventRecorder::event_count()` convenience method
+
+### Changed
+- **BREAKING**: Migrated from `core/v1/Event` to `events.k8s.io/v1/Event` API ([migration guide](MIGRATION_v0.4.md))
+- **BREAKING**: `EventRecorder<P>` now requires `P: ProvideApi<events::v1::Event>` (was `core::v1::Event`)
+- **BREAKING**: `MockEventRecorder::events()` returns `Vec<RecordedEvent<R>>` instead of `Vec<(String, R, String)>`
+- **BREAKING**: RBAC rules must include `apiGroups: ["events.k8s.io"]` with verbs `create, patch`
+- Added `tokio` as a runtime dependency (sync feature, for async-safe dedup cache)
+
 ## [0.3.1] - 2026-01-05
 
 ### Added
@@ -103,7 +120,8 @@ see the [commit history](https://github.com/maoertel/kuberator/commits/main).
 
 ---
 
-[Unreleased]: https://github.com/maoertel/kuberator/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/maoertel/kuberator/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/maoertel/kuberator/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/maoertel/kuberator/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maoertel/kuberator/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/maoertel/kuberator/compare/v0.2.0...v0.2.1
