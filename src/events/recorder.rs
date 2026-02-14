@@ -11,10 +11,10 @@ use k8s_openapi::api::events::v1::Event;
 use k8s_openapi::api::events::v1::EventSeries;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::MicroTime;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-use kube::Api;
 use kube::api::Patch;
 use kube::api::PatchParams;
 use kube::api::PostParams;
+use kube::Api;
 use kube::Resource;
 use serde::Serialize;
 use tokio::sync::Mutex;
@@ -130,12 +130,7 @@ where
         cache.get(key).cloned()
     }
 
-    async fn patch_existing(
-        &self,
-        events_api: &Api<Event>,
-        key: &EventKey,
-        cached: &CachedEvent,
-    ) -> Result<()> {
+    async fn patch_existing(&self, events_api: &Api<Event>, key: &EventKey, cached: &CachedEvent) -> Result<()> {
         let new_count = cached.count + 1;
         let now = Utc::now();
 
