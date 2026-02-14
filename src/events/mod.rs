@@ -3,6 +3,10 @@
 //! This module provides generic event emission functionality for Kubernetes operators.
 //! Events are observability-only and never fail reconciliation.
 //!
+//! Events use the `events.k8s.io/v1` API with built-in deduplication: the first
+//! occurrence creates a new Event, and subsequent identical events increment the
+//! series count via PATCH instead of creating duplicates.
+//!
 //! # Example
 //! ```rust,ignore
 //! use kuberator::events::{EmitEvent, EventRecorder, EventData, Reason};
@@ -94,7 +98,8 @@ pub mod tests {
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use std::sync::Arc;
     use std::sync::Mutex;
-    use strum::{AsRefStr, Display};
+    use strum::AsRefStr;
+    use strum::Display;
 
     // Test event reason enum
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, AsRefStr)]
@@ -107,10 +112,19 @@ pub mod tests {
 
     impl Reason for TestEventReason {}
 
-    /// Mock event recorder for testing
+    /// A recorded event with deduplication tracking
+    #[derive(Debug, Clone)]
+    pub struct RecordedEvent<R: Reason> {
+        pub resource_name: String,
+        pub reason: R,
+        pub message: String,
+        pub count: i32,
+    }
+
+    /// Mock event recorder for testing with deduplication behavior
     #[derive(Clone)]
     pub struct MockEventRecorder<R: Reason> {
-        events: Arc<Mutex<Vec<(String, R, String)>>>,
+        events: Arc<Mutex<Vec<RecordedEvent<R>>>>,
     }
 
     impl<R: Reason> Default for MockEventRecorder<R> {
@@ -126,8 +140,14 @@ pub mod tests {
             }
         }
 
-        pub fn events(&self) -> Vec<(String, R, String)> {
+        /// Returns deduplicated events with counts
+        pub fn events(&self) -> Vec<RecordedEvent<R>> {
             self.events.lock().unwrap().clone()
+        }
+
+        /// Returns the number of unique events
+        pub fn event_count(&self) -> usize {
+            self.events.lock().unwrap().len()
         }
 
         pub fn clear(&self) {
@@ -141,10 +161,27 @@ pub mod tests {
         where
             K: Resource<DynamicType = ()> + TryResource + Clone + Send + Sync,
         {
-            self.events
-                .lock()
-                .unwrap()
-                .push((object.try_name()?.to_owned(), event.reason, event.message));
+            let name = object.try_name()?.to_owned();
+            let reason_str = event.reason.as_ref().to_owned();
+
+            let mut events = self.events.lock().unwrap();
+
+            // Dedup: find existing event with same resource_name + reason
+            if let Some(existing) = events
+                .iter_mut()
+                .find(|e| e.resource_name == name && e.reason.as_ref() == reason_str)
+            {
+                existing.count += 1;
+                existing.message = event.message;
+                return Ok(());
+            }
+
+            events.push(RecordedEvent {
+                resource_name: name,
+                reason: event.reason,
+                message: event.message,
+                count: 1,
+            });
 
             Ok(())
         }
@@ -153,7 +190,7 @@ pub mod tests {
     /// Mock that can be configured to fail on demand for testing error handling
     struct FailingMockEventRecorder<R: Reason> {
         should_fail: bool,
-        events: Arc<Mutex<Vec<(String, R, String)>>>,
+        events: Arc<Mutex<Vec<RecordedEvent<R>>>>,
     }
 
     impl<R: Reason> FailingMockEventRecorder<R> {
@@ -171,7 +208,7 @@ pub mod tests {
             }
         }
 
-        fn events(&self) -> Vec<(String, R, String)> {
+        fn events(&self) -> Vec<RecordedEvent<R>> {
             self.events.lock().unwrap().clone()
         }
     }
@@ -186,10 +223,26 @@ pub mod tests {
                 return Err(Error::EmitEventFailed("Simulated failure".to_string()));
             }
 
-            self.events
-                .lock()
-                .unwrap()
-                .push((object.try_name()?.to_owned(), event.reason, event.message));
+            let name = object.try_name()?.to_owned();
+            let reason_str = event.reason.as_ref().to_owned();
+
+            let mut events = self.events.lock().unwrap();
+
+            if let Some(existing) = events
+                .iter_mut()
+                .find(|e| e.resource_name == name && e.reason.as_ref() == reason_str)
+            {
+                existing.count += 1;
+                existing.message = event.message;
+                return Ok(());
+            }
+
+            events.push(RecordedEvent {
+                resource_name: name,
+                reason: event.reason,
+                message: event.message,
+                count: 1,
+            });
 
             Ok(())
         }
@@ -208,10 +261,11 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_mock_event_recorder() {
+        // Given: A mock event recorder and a resource
         let recorder = MockEventRecorder::<TestEventReason>::new();
-
         let resource = create_test_resource();
 
+        // When: Emitting a single event
         recorder
             .try_emit(
                 &resource,
@@ -220,11 +274,13 @@ pub mod tests {
             .await
             .unwrap();
 
+        // Then: One event is recorded with correct fields
         let events = recorder.events();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].0, "test-resource");
-        assert_eq!(events[0].1, TestEventReason::ResourceCreated);
-        assert_eq!(events[0].2, "Resource was created");
+        assert_eq!(events[0].resource_name, "test-resource");
+        assert_eq!(events[0].reason, TestEventReason::ResourceCreated);
+        assert_eq!(events[0].message, "Resource was created");
+        assert_eq!(events[0].count, 1);
     }
 
     #[test]
@@ -301,8 +357,8 @@ pub mod tests {
         assert!(result.is_ok());
         let events = recorder.events();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].0, "test-resource");
-        assert_eq!(events[0].2, "Test message");
+        assert_eq!(events[0].resource_name, "test-resource");
+        assert_eq!(events[0].message, "Test message");
     }
 
     #[tokio::test]
@@ -341,7 +397,7 @@ pub mod tests {
         // Then: The event was recorded (no panic, no error propagation)
         let events = recorder.events();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].0, "test-resource");
+        assert_eq!(events[0].resource_name, "test-resource");
     }
 
     #[tokio::test]
@@ -380,17 +436,17 @@ pub mod tests {
         // Then: try_emit was called (evidenced by recorded event)
         let events = recorder.events();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].1, TestEventReason::ResourceUpdated);
-        assert_eq!(events[0].2, "Update message");
+        assert_eq!(events[0].reason, TestEventReason::ResourceUpdated);
+        assert_eq!(events[0].message, "Update message");
     }
 
     #[tokio::test]
-    async fn test_multiple_events_are_recorded_sequentially() {
+    async fn test_multiple_different_events_are_recorded() {
         // Given: A recorder and a resource
         let recorder = MockEventRecorder::<TestEventReason>::new();
         let resource = create_test_resource();
 
-        // When: Emitting multiple events
+        // When: Emitting multiple events with different reasons
         recorder
             .emit(
                 &resource,
@@ -412,12 +468,12 @@ pub mod tests {
             )
             .await;
 
-        // Then: All events are recorded in order
+        // Then: All events are recorded separately (different reasons = no dedup)
         let events = recorder.events();
         assert_eq!(events.len(), 3);
-        assert_eq!(events[0].1, TestEventReason::ResourceCreated);
-        assert_eq!(events[1].1, TestEventReason::ResourceUpdated);
-        assert_eq!(events[2].1, TestEventReason::ResourceDeleted);
+        assert_eq!(events[0].reason, TestEventReason::ResourceCreated);
+        assert_eq!(events[1].reason, TestEventReason::ResourceUpdated);
+        assert_eq!(events[2].reason, TestEventReason::ResourceDeleted);
     }
 
     #[tokio::test]
@@ -440,5 +496,129 @@ pub mod tests {
 
         // Then: All events are removed
         assert_eq!(recorder.events().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_duplicate_events_are_deduplicated() {
+        // Given: A recorder and a resource
+        let recorder = MockEventRecorder::<TestEventReason>::new();
+        let resource = create_test_resource();
+
+        // When: Emitting the same event (same resource + reason) twice
+        recorder
+            .emit(
+                &resource,
+                EventData::normal(TestEventReason::ResourceCreated, "First message"),
+            )
+            .await;
+
+        recorder
+            .emit(
+                &resource,
+                EventData::normal(TestEventReason::ResourceCreated, "Second message"),
+            )
+            .await;
+
+        // Then: Only one event exists with count=2 and the latest message
+        let events = recorder.events();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].reason, TestEventReason::ResourceCreated);
+        assert_eq!(events[0].message, "Second message");
+        assert_eq!(events[0].count, 2);
+    }
+
+    #[tokio::test]
+    async fn test_different_reasons_not_deduplicated() {
+        // Given: A recorder and a resource
+        let recorder = MockEventRecorder::<TestEventReason>::new();
+        let resource = create_test_resource();
+
+        // When: Emitting events with different reasons for the same resource
+        recorder
+            .emit(
+                &resource,
+                EventData::normal(TestEventReason::ResourceCreated, "Created"),
+            )
+            .await;
+
+        recorder
+            .emit(
+                &resource,
+                EventData::warning(TestEventReason::ReconciliationFailed, "Failed"),
+            )
+            .await;
+
+        // Then: Both events are recorded separately
+        let events = recorder.events();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].count, 1);
+        assert_eq!(events[1].count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_different_resources_not_deduplicated() {
+        // Given: A recorder and two different resources
+        let recorder = MockEventRecorder::<TestEventReason>::new();
+        let resource1 = ConfigMap {
+            metadata: ObjectMeta {
+                name: Some("resource-1".to_string()),
+                namespace: Some("default".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let resource2 = ConfigMap {
+            metadata: ObjectMeta {
+                name: Some("resource-2".to_string()),
+                namespace: Some("default".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // When: Emitting the same reason for different resources
+        recorder
+            .emit(
+                &resource1,
+                EventData::normal(TestEventReason::ResourceCreated, "Created 1"),
+            )
+            .await;
+
+        recorder
+            .emit(
+                &resource2,
+                EventData::normal(TestEventReason::ResourceCreated, "Created 2"),
+            )
+            .await;
+
+        // Then: Both events are recorded separately
+        let events = recorder.events();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].resource_name, "resource-1");
+        assert_eq!(events[1].resource_name, "resource-2");
+    }
+
+    #[tokio::test]
+    async fn test_event_count_returns_unique_count() {
+        // Given: A recorder with some events
+        let recorder = MockEventRecorder::<TestEventReason>::new();
+        let resource = create_test_resource();
+
+        // When: Emitting 3 events (2 duplicates + 1 different)
+        recorder
+            .emit(&resource, EventData::normal(TestEventReason::ResourceCreated, "First"))
+            .await;
+        recorder
+            .emit(&resource, EventData::normal(TestEventReason::ResourceCreated, "Second"))
+            .await;
+        recorder
+            .emit(
+                &resource,
+                EventData::normal(TestEventReason::ResourceUpdated, "Updated"),
+            )
+            .await;
+
+        // Then: event_count returns 2 unique events
+        assert_eq!(recorder.event_count(), 2);
     }
 }

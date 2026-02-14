@@ -2,9 +2,10 @@ use std::fmt::Debug;
 use std::fmt::Display;
 use strum::AsRefStr;
 use strum::Display as StrumDisplay;
+use strum::IntoStaticStr;
 
 /// Type of Kubernetes event
-#[derive(Debug, Clone, Copy, PartialEq, Eq, StrumDisplay, AsRefStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, StrumDisplay, AsRefStr, IntoStaticStr)]
 pub enum EventType {
     /// Normal events represent informational messages about successful operations
     Normal,
@@ -31,7 +32,6 @@ pub struct EventData<R: Reason> {
 }
 
 impl<R: Reason> EventData<R> {
-    /// Create a Normal event
     pub fn normal(reason: R, message: impl Into<String>) -> Self {
         Self {
             type_: EventType::Normal,
