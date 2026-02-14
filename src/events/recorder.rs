@@ -7,7 +7,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 use chrono::Utc;
 use k8s_openapi::api::core::v1::ObjectReference;
-use k8s_openapi::api::events::v1::Event as K8sEvent;
+use k8s_openapi::api::events::v1::Event;
 use k8s_openapi::api::events::v1::EventSeries;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::MicroTime;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
@@ -36,7 +36,7 @@ use crate::TryResource;
 /// the next emission creates a fresh Event.
 pub struct EventRecorder<P>
 where
-    P: ProvideApi<K8sEvent> + Send + Sync,
+    P: ProvideApi<Event> + Send + Sync,
 {
     api_provider: Arc<P>,
     component: Cow<'static, str>,
@@ -47,7 +47,7 @@ where
 #[async_trait]
 impl<P, R> EmitEvent<R> for EventRecorder<P>
 where
-    P: ProvideApi<K8sEvent> + Send + Sync,
+    P: ProvideApi<Event> + Send + Sync,
     R: Reason,
 {
     #[tracing::instrument(
@@ -92,7 +92,7 @@ where
 
 impl<P> EventRecorder<P>
 where
-    P: ProvideApi<K8sEvent> + Send + Sync,
+    P: ProvideApi<Event> + Send + Sync,
 {
     const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(6 * 60);
     /// Maximum length for the `note` field in `events.k8s.io/v1` Events.
@@ -131,7 +131,7 @@ where
 
     async fn patch_existing(
         &self,
-        events_api: &kube::Api<K8sEvent>,
+        events_api: &kube::Api<Event>,
         key: &EventKey,
         cached: &CachedEvent,
     ) -> Result<()> {
@@ -160,7 +160,7 @@ where
 
     async fn create_new<R: Reason>(
         &self,
-        events_api: &kube::Api<K8sEvent>,
+        events_api: &kube::Api<Event>,
         key: EventKey,
         event: EventData<R>,
         name: &str,
@@ -173,7 +173,7 @@ where
         let action = event.action.unwrap_or_else(|| event.reason.to_string());
         let note = truncate_note(event.message, Self::MAX_NOTE_LENGTH);
 
-        let k8s_event = K8sEvent {
+        let k8s_event = Event {
             metadata: ObjectMeta {
                 name: Some(event_name.to_owned()),
                 namespace: Some(namespace.to_owned()),
