@@ -5,12 +5,12 @@ use std::time::Duration;
 use std::time::Instant;
 
 use async_trait::async_trait;
-use chrono::Utc;
 use k8s_openapi::api::core::v1::ObjectReference;
 use k8s_openapi::api::events::v1::Event;
 use k8s_openapi::api::events::v1::EventSeries;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::MicroTime;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+use k8s_openapi::jiff::Timestamp;
 use kube::api::Patch;
 use kube::api::PatchParams;
 use kube::api::PostParams;
@@ -132,7 +132,7 @@ where
 
     async fn patch_existing(&self, events_api: &Api<Event>, key: &EventKey, cached: &CachedEvent) -> Result<()> {
         let new_count = cached.count + 1;
-        let now = Utc::now();
+        let now = Timestamp::now();
 
         let patch = EventSeriesPatch {
             series: EventSeries {
@@ -163,8 +163,8 @@ where
         namespace: &str,
         regarding: ObjectReference,
     ) -> Result<()> {
-        let now = Utc::now();
-        let event_name = format!("{name}.{:x}", now.timestamp_micros() as u64);
+        let now = Timestamp::now();
+        let event_name = format!("{name}.{:x}", now.as_microsecond() as u64);
 
         let action = event.action.unwrap_or_else(|| event.reason.to_string());
         let note = truncate_note(event.message, Self::MAX_NOTE_LENGTH);

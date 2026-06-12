@@ -77,12 +77,11 @@ mod tests {
     #[test]
     fn test_kube_error_conversion() {
         // Given: A kube::Error
-        let kube_err = kube::Error::Api(kube::core::ErrorResponse {
-            status: "Failure".to_string(),
-            message: "test error".to_string(),
-            reason: "BadRequest".to_string(),
-            code: 400,
-        });
+        let kube_err = kube::Error::Api(
+            kube::core::Status::failure("test error", "BadRequest")
+                .with_code(400)
+                .boxed(),
+        );
 
         // When: Converting to Error
         let error: Error = kube_err.into();
@@ -157,12 +156,11 @@ mod tests {
     #[test]
     fn test_finalizer_error_add_finalizer() {
         // Given: A FError::AddFinalizer with kube error
-        let kube_err = kube::Error::Api(kube::core::ErrorResponse {
-            status: "Failure".to_string(),
-            message: "cannot add finalizer".to_string(),
-            reason: "Conflict".to_string(),
-            code: 409,
-        });
+        let kube_err = kube::Error::Api(
+            kube::core::Status::failure("cannot add finalizer", "Conflict")
+                .with_code(409)
+                .boxed(),
+        );
         let ferror: FError<std::io::Error> = FError::AddFinalizer(kube_err);
 
         // When: Converting to Error
@@ -180,12 +178,11 @@ mod tests {
     #[test]
     fn test_finalizer_error_remove_finalizer() {
         // Given: A FError::RemoveFinalizer with kube error
-        let kube_err = kube::Error::Api(kube::core::ErrorResponse {
-            status: "Failure".to_string(),
-            message: "cannot remove finalizer".to_string(),
-            reason: "Conflict".to_string(),
-            code: 409,
-        });
+        let kube_err = kube::Error::Api(
+            kube::core::Status::failure("cannot remove finalizer", "Conflict")
+                .with_code(409)
+                .boxed(),
+        );
         let ferror: FError<std::io::Error> = FError::RemoveFinalizer(kube_err);
 
         // When: Converting to Error
