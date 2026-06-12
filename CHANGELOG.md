@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-12
+
+### Changed
+- Updated all dependencies to their latest versions
+- **BREAKING**: Bumped `kube` 2.0 → 3.1; `kube::Error::Api` now wraps a boxed `Status`
+- **BREAKING**: Bumped `k8s-openapi` 0.26 → 0.27; time types migrated from `chrono` to `jiff`
+- Bumped `strum` 0.27 → 0.28
+
+### Removed
+- Dropped the direct `chrono` dependency (replaced by `jiff` via `k8s-openapi`)
+
 ## [0.4.0] - 2026-02-13
 
 ### Added
@@ -120,7 +131,8 @@ see the [commit history](https://github.com/maoertel/kuberator/commits/main).
 
 ---
 
-[Unreleased]: https://github.com/maoertel/kuberator/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/maoertel/kuberator/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/maoertel/kuberator/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/maoertel/kuberator/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/maoertel/kuberator/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maoertel/kuberator/compare/v0.2.1...v0.3.0
